@@ -1,0 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=Inter:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-brand: 'Rajdhani', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --color-amber: #f59e0b;
+  --color-amber-dim: #92640a;
+  --color-garage-black: #080808;
+  --color-garage-dark: #111111;
+  --color-garage-surface: #1a1a1a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: auto; }
+body { background: #080808; color: #f5f5f0; font-family: 'Inter', sans-serif; overflow-x: hidden; }
+#scroll-container { height: 600vh; position: relative; }
+#root { width: 100%; margin: 0; text-align: left; border: none; min-height: unset; display: block; }
+
+@keyframes bounce-arrow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+.bounce-arrow {
+  animation: bounce-arrow 1.5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #scroll-container { height: auto; }
+  canvas { position: relative !important; height: 100vh !important; }
+}
