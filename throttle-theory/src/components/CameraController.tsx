@@ -38,7 +38,6 @@ export default function CameraController({ scrollContainerRef }: Props) {
   const setProgress = useScrollStore((s) => s.setProgress)
   const progressRef = useRef(0)
   const lookAtTarget = useRef(new THREE.Vector3(0, 0, 0))
-  const orbitAngle = useRef(0)
 
   useGSAP(() => {
     const container = scrollContainerRef.current
@@ -88,12 +87,14 @@ export default function CameraController({ scrollContainerRef }: Props) {
       lookAtTarget.current.lerpVectors(WAYPOINTS.enter.target, WAYPOINTS.carView.target, t)
 
     } else {
-      // Phase 5: Orbit around car
-      orbitAngle.current += 0.003
+      // Phase 5: Scroll-driven orbit around car
+      // Maps progress 0.72→1.0 to a full 360° orbit
+      const orbitT = (p - 0.72) / (1.0 - 0.72)
+      const angle = orbitT * Math.PI * 2
       const radius = 7
-      camera.position.x = Math.sin(orbitAngle.current) * radius
+      camera.position.x = Math.sin(angle) * radius
       camera.position.y = 2.5
-      camera.position.z = Math.cos(orbitAngle.current) * radius
+      camera.position.z = Math.cos(angle) * radius
       lookAtTarget.current.set(0, 1, 0)
     }
 
