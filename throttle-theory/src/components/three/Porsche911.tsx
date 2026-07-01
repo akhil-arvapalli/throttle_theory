@@ -108,21 +108,19 @@ export default function Porsche911({ scrollProgress, color = 'red' }: Props) {
     }
   }, [bodyGeo, bodyMat, glassMat, tireMat, hubMat, tireGeo])
 
-  // Entry animation: starts at z:-20, animates to z:0 during progress 0.62→0.72
+  // Entry animation fires on mount — car slides in from z:-20
   useEffect(() => {
-    if (!groupRef.current) return
-    if (scrollProgress >= 0.62 && !entryDone.current) {
-      groupRef.current.position.z = -20
-      gsap.to(groupRef.current.position, {
-        z: 0,
-        duration: 1.2,
-        ease: 'power2.out',
-      })
-      entryDone.current = true
-    }
-  }, [scrollProgress])
+    if (!groupRef.current || entryDone.current) return
+    groupRef.current.position.z = -20
+    gsap.to(groupRef.current.position, {
+      z: 0,
+      duration: 1.4,
+      ease: 'power2.out',
+    })
+    entryDone.current = true
+  }, [])
 
-  const visible = scrollProgress >= 0.62
+  const visible = true
 
   const frontWheelLeft = useMemo(() => buildWheel(tireGeo, tireMat, hubMat), [tireGeo, tireMat, hubMat])
   const frontWheelRight = useMemo(() => buildWheel(tireGeo, tireMat, hubMat), [tireGeo, tireMat, hubMat])

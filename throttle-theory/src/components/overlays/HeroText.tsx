@@ -3,16 +3,17 @@ import { useScrollStore } from '../../hooks/useScrollProgress'
 export default function HeroText() {
   const progress = useScrollStore((s) => s.progress)
 
+  // Title is shown during the video phase (progress 0.05→0.35), fades out before 3D takes over
   let opacity = 0
-  if (progress >= 0.20 && progress <= 0.28) {
-    opacity = (progress - 0.20) / 0.08
-  } else if (progress > 0.28 && progress < 0.42) {
+  if (progress >= 0.05 && progress <= 0.12) {
+    opacity = (progress - 0.05) / 0.07
+  } else if (progress > 0.12 && progress < 0.38) {
     opacity = 1
-  } else if (progress >= 0.42 && progress <= 0.50) {
-    opacity = 1 - (progress - 0.42) / 0.08
+  } else if (progress >= 0.38 && progress <= 0.48) {
+    opacity = 1 - (progress - 0.38) / 0.10
   }
 
-  const arrowOpacity = progress < 0.04 ? 1 : progress < 0.08 ? 1 - (progress - 0.04) / 0.04 : 0
+  const arrowOpacity = progress < 0.03 ? 1 : progress < 0.06 ? 1 - (progress - 0.03) / 0.03 : 0
 
   return (
     <>

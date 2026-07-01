@@ -1,8 +1,6 @@
-import { type RefObject } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { ContactShadows, Environment } from '@react-three/drei'
 import * as THREE from 'three'
-import { useScrollStore } from '../hooks/useScrollProgress'
 import SceneLighting from './three/SceneLighting'
 import GarageExterior from './three/GarageExterior'
 import Shutter3D from './three/Shutter3D'
@@ -11,16 +9,24 @@ import PorscheAsset from './three/PorscheAsset'
 import CameraController from './CameraController'
 
 interface Props {
-  scrollContainerRef: RefObject<HTMLDivElement | null>
+  sceneProgress: number
+  visible: boolean
 }
 
-export default function Scene3D({ scrollContainerRef }: Props) {
-  const progress = useScrollStore((s) => s.progress)
-
+export default function Scene3D({ sceneProgress, visible }: Props) {
   return (
     <Canvas
       camera={{ fov: 45, near: 0.1, far: 200 }}
-      style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', zIndex: 0 }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 0,
+        opacity: visible ? 1 : 0,
+        pointerEvents: visible ? 'auto' : 'none',
+      }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
@@ -36,11 +42,12 @@ export default function Scene3D({ scrollContainerRef }: Props) {
     >
       <color attach="background" args={['#050505']} />
       <fog attach="fog" args={['#050505', 14, 55]} />
-      <SceneLighting scrollProgress={progress} />
-      <GarageExterior scrollProgress={progress} />
-      <Shutter3D scrollProgress={progress} />
-      <GarageInterior scrollProgress={progress} />
-      <PorscheAsset scrollProgress={progress} />
+      {/* Always interior phase — exterior/shutter never shown after video */}
+      <SceneLighting scrollProgress={1.0} />
+      <GarageExterior scrollProgress={1.0} />
+      <Shutter3D scrollProgress={1.0} />
+      <GarageInterior scrollProgress={0.65} />
+      <PorscheAsset scrollProgress={sceneProgress} />
       <Environment preset="city" background={false} blur={0.35} />
       <ContactShadows
         position={[0, 0.02, 0]}
@@ -51,7 +58,7 @@ export default function Scene3D({ scrollContainerRef }: Props) {
         resolution={512}
         color="#000000"
       />
-      <CameraController scrollContainerRef={scrollContainerRef} />
+      <CameraController sceneProgress={sceneProgress} />
     </Canvas>
   )
 }

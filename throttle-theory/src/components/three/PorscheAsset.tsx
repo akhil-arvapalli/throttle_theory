@@ -32,19 +32,15 @@ function ImportedPorsche({ scrollProgress }: Props) {
   }, [scene])
 
   useEffect(() => {
-    if (!groupRef.current) return
-    if (scrollProgress >= 0.62 && !entryDone.current) {
-      groupRef.current.position.z = -20
-      gsap.to(groupRef.current.position, {
-        z: 0,
-        duration: 1.2,
-        ease: 'power2.out',
-      })
-      entryDone.current = true
-    }
-  }, [scrollProgress])
-
-  if (scrollProgress < 0.62) return null
+    if (!groupRef.current || entryDone.current) return
+    groupRef.current.position.z = -20
+    gsap.to(groupRef.current.position, {
+      z: 0,
+      duration: 1.4,
+      ease: 'power2.out',
+    })
+    entryDone.current = true
+  }, [])
 
   return (
     <group ref={groupRef} position={[0, 0, 0]} scale={1.0}>
