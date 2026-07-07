@@ -25,7 +25,7 @@ export default function Scene3D({ sceneProgress, visible }: Props) {
         height: '100vh',
         zIndex: 0,
         opacity: visible ? 1 : 0,
-        pointerEvents: visible ? 'auto' : 'none',
+        pointerEvents: 'none',
       }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       onCreated={({ gl, scene }) => {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const TOTAL_FRAMES = 192
+const TOTAL_FRAMES = 1202
 const FRAME_PATH = (n: number) => `/frames/frame_${String(n).padStart(4, '0')}.webp`
 
 // Preload all frames into Image objects once on mount
@@ -38,27 +38,49 @@ export default function VideoScrubber({ progress, visible }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { frames, loaded } = useFrames()
   const lastFrame = useRef(-1)
+  const rafId = useRef(0)
+  const progressRef = useRef(progress)
 
+  // Keep a ref in sync so rAF can read the latest value
+  progressRef.current = progress
+
+  // Use a persistent rAF loop for buttery-smooth rendering
   useEffect(() => {
-    if (!loaded || !canvasRef.current || !visible) return
-
-    const frameIndex = Math.min(
-      Math.floor(progress * (TOTAL_FRAMES - 1)),
-      TOTAL_FRAMES - 1
-    )
-
-    if (frameIndex === lastFrame.current) return
-    lastFrame.current = frameIndex
+    if (!loaded || !visible) return
 
     const canvas = canvasRef.current
-    const ctx = canvas.getContext('2d')
+    if (!canvas) return
+    const ctx = canvas.getContext('2d', { alpha: false })
     if (!ctx) return
 
-    const img = frames[frameIndex]
-    if (img?.complete && img.naturalWidth > 0) {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    let running = true
+
+    const tick = () => {
+      if (!running) return
+
+      const frameIndex = Math.min(
+        Math.floor(progressRef.current * (TOTAL_FRAMES - 1)),
+        TOTAL_FRAMES - 1
+      )
+
+      if (frameIndex !== lastFrame.current) {
+        lastFrame.current = frameIndex
+        const img = frames[frameIndex]
+        if (img?.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        }
+      }
+
+      rafId.current = requestAnimationFrame(tick)
     }
-  }, [progress, loaded, visible, frames])
+
+    rafId.current = requestAnimationFrame(tick)
+
+    return () => {
+      running = false
+      cancelAnimationFrame(rafId.current)
+    }
+  }, [loaded, visible, frames])
 
   return (
     <canvas
@@ -75,6 +97,7 @@ export default function VideoScrubber({ progress, visible }: Props) {
         objectFit: 'cover',
         display: visible ? 'block' : 'none',
         background: '#050505',
+        pointerEvents: 'none',
       }}
     />
   )

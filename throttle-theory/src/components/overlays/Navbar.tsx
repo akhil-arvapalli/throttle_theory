@@ -94,7 +94,7 @@ export default function Navbar() {
           border: 'none',
           cursor: 'pointer',
           padding: 4,
-          display: 'none',
+          WebkitTapHighlightColor: 'transparent',
         }}
         aria-label="Toggle menu"
       >

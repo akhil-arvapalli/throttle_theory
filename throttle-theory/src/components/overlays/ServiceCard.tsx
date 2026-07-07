@@ -11,24 +11,22 @@ export default function ServiceCard({ service, visible }: Props) {
 
   return (
     <motion.div
-      initial={{ x: isRight ? 40 : -40, opacity: 0 }}
-      animate={visible ? { x: 0, opacity: 1 } : { x: isRight ? 40 : -40, opacity: 0 }}
+      initial={{ y: 30, opacity: 0 }}
+      animate={visible ? { y: 0, opacity: 1 } : { y: 30, opacity: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
+      className="service-card"
       style={{
         position: 'fixed',
-        top: '50%',
-        [isRight ? 'right' : 'left']: 32,
-        transform: 'translateY(-50%)',
-        width: 280,
+        zIndex: 10,
         background: 'rgba(8,8,8,0.82)',
         backdropFilter: 'blur(12px)',
         borderLeft: `3px solid ${service.accentColor}`,
         borderRadius: 4,
         padding: '16px 18px',
-        zIndex: 10,
         willChange: 'transform, opacity',
         pointerEvents: visible ? 'auto' : 'none',
       }}
+      data-position={service.position}
     >
       <div style={{ marginBottom: 4 }}>
         <p
@@ -88,8 +86,9 @@ export default function ServiceCard({ service, visible }: Props) {
         ))}
       </ul>
 
-      {/* Connector line + dot */}
+      {/* Connector line + dot — hidden on mobile */}
       <svg
+        className="service-card-connector"
         style={{
           position: 'absolute',
           top: '50%',
@@ -119,6 +118,42 @@ export default function ServiceCard({ service, visible }: Props) {
           style={{ filter: `drop-shadow(0 0 4px ${service.accentColor})` }}
         />
       </svg>
+
+      <style>{`
+        /* Desktop positioning */
+        .service-card {
+          top: 50%;
+          transform: translateY(-50%);
+          width: 280px;
+        }
+        .service-card[data-position="right"] {
+          right: 32px;
+        }
+        .service-card[data-position="left"] {
+          left: 32px;
+        }
+
+        /* Mobile: center cards at bottom, full width */
+        @media (max-width: 768px) {
+          .service-card {
+            top: auto !important;
+            bottom: 20px !important;
+            left: 16px !important;
+            right: 16px !important;
+            width: auto !important;
+            transform: none !important;
+            max-width: 400px;
+            margin: 0 auto;
+          }
+          .service-card[data-position="right"] {
+            right: 16px !important;
+            left: 16px !important;
+          }
+          .service-card-connector {
+            display: none !important;
+          }
+        }
+      `}</style>
     </motion.div>
   )
 }
