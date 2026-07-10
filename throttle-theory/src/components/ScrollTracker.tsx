@@ -43,6 +43,13 @@ export default function ScrollTracker() {
     const tick = () => {
       if (!running) return
 
+      // Handle programmatic jumps (e.g. navbar "Services" click)
+      const jumpTarget = useScrollStore.getState().jumpTarget
+      if (jumpTarget !== null) {
+        targetRef.current = jumpTarget
+        useScrollStore.setState({ jumpTarget: null })
+      }
+
       const diff = targetRef.current - currentRef.current
 
       if (Math.abs(diff) > SNAP_THRESHOLD) {

@@ -1,63 +1,99 @@
 export interface Service {
   id: string
+  label: string
   title: string
-  subtitle: string
   description: string
   items: string[]
   accentColor: string
-  scrollPhase: number
-  position: 'left' | 'right'
+  /** progress value to jump to when clicking this service */
+  scrollTarget: number
+  /** box fades in at this progress */
+  startPhase: number
+  /** box fades out at this progress */
+  endPhase: number
+  /** horizontal position of the info box on screen */
+  position: 'center' | 'left' | 'right'
 }
 
 export const SERVICES: Service[] = [
   {
-    id: 'engine',
-    title: 'Engine & Performance',
-    subtitle: 'Rebuild · Tune · Remap',
-    description: 'Full diagnostics, engine rebuilds, ECU remapping, turbo service, and performance upgrades. We speak Bosch and Haltech.',
-    items: ['Compression & leak-down testing', 'Timing chain / belt', 'Turbo rebuild & upgrade', 'ECU remap'],
+    id: 'diagnostics',
+    label: 'Diagnostics',
+    title: 'Know Your Machine',
+    description:
+      'Full OBD scanning, live sensor data, fault code analysis, and pre-purchase inspections. We read the car before anyone touches it.',
+    items: ['OBD-II / OBD scan', 'Live sensor & data logging', 'Fault code diagnosis', 'Pre-purchase inspection'],
     accentColor: '#f59e0b',
-    scrollPhase: 0.75,
-    position: 'right',
+    scrollTarget: 0.296,
+    startPhase: 0.296,
+    endPhase: 0.415,
+    position: 'center',
   },
   {
     id: 'maintenance',
-    title: 'Maintenance & Service',
-    subtitle: 'Full spectrum care',
-    description: 'Scheduled servicing, brake systems, suspension, AC, and full pre-purchase inspections.',
+    label: 'Maintenance',
+    title: 'Keep It Running Right',
+    description:
+      'Scheduled servicing, brake systems, suspension, AC, and everything in between. We follow manufacturer specs — no shortcuts.',
     items: ['Oil, filter & fluids', 'Brake pads, rotors, caliper', 'Suspension & alignment', 'AC service & regas'],
     accentColor: '#60a5fa',
-    scrollPhase: 0.80,
+    scrollTarget: 0.430,
+    startPhase: 0.430,
+    endPhase: 0.557,
+    position: 'center',
+  },
+  // Clip 5 — Performance (left) + Wheels & Tyres (right)
+  {
+    id: 'performance',
+    label: 'Performance',
+    title: 'Push Further',
+    description:
+      'ECU remapping, turbo upgrades, intake & exhaust, and full engine rebuilds. More power done properly.',
+    items: ['ECU remap & tuning', 'Turbo rebuild & upgrade', 'Intake & exhaust work', 'Full engine rebuild'],
+    accentColor: '#ef4444',
+    scrollTarget: 0.582,
+    startPhase: 0.582,
+    endPhase: 0.704,
     position: 'left',
   },
   {
-    id: 'detailing',
-    title: 'Paint & Detailing',
-    subtitle: 'Correction · Ceramic · PPF',
-    description: 'Single-stage to multi-stage paint correction, ceramic coating, and paint protection film application.',
-    items: ['Multi-stage paint correction', 'Ceramic Pro coating', 'PPF (full / partial)', 'Interior deep clean'],
+    id: 'wheels',
+    label: 'Wheels & Tyres',
+    title: 'Grip. Balance. Style.',
+    description:
+      'Tyre fitting, laser wheel alignment, dynamic balancing, and alloy refurbishment.',
+    items: ['Tyre supply & fitting', 'Laser wheel alignment', 'Dynamic balancing', 'Alloy wheel repair'],
     accentColor: '#34d399',
-    scrollPhase: 0.85,
+    scrollTarget: 0.582,
+    startPhase: 0.582,
+    endPhase: 0.704,
     position: 'right',
   },
+  // Clip 7 — Detailing (left) + Custom Builds (right)
   {
-    id: 'wrapping',
-    title: 'Vinyl Wrapping',
-    subtitle: 'Full · Partial · Livery',
-    description: 'Full body wraps, chrome deletes, racing stripes, and custom livery design. 3M and Avery certified.',
-    items: ['Full body wrap', 'Chrome delete', 'Custom livery design', 'Carbon fibre accents'],
+    id: 'detailing',
+    label: 'Detailing',
+    title: 'Show-Ready Finish',
+    description:
+      'Multi-stage paint correction, ceramic coating, paint protection film, and deep interior cleaning.',
+    items: ['Multi-stage paint correction', 'Ceramic Pro coating', 'PPF (full / partial)', 'Interior deep clean'],
     accentColor: '#a78bfa',
-    scrollPhase: 0.88,
+    scrollTarget: 0.868,
+    startPhase: 0.868,
+    endPhase: 0.975,
     position: 'left',
   },
   {
-    id: 'wash',
-    title: 'Wash & Valet',
-    subtitle: 'Hand wash · Express · Full',
-    description: 'Foam cannon hand wash, interior valet, tyre dressing, and express packages. No automated machines — ever.',
-    items: ['Foam cannon wash', 'Clay bar decontamination', 'Interior vacuum & wipe', 'Tyre & trim dressing'],
-    accentColor: '#38bdf8',
-    scrollPhase: 0.93,
+    id: 'custom',
+    label: 'Custom Builds',
+    title: 'Built From a Vision',
+    description:
+      "Full project builds, engine swaps, roll cage fabrication, and bespoke modifications.",
+    items: ['Full project builds', 'Engine swaps', 'Roll cage & fabrication', 'Livery & wrap design'],
+    accentColor: '#f97316',
+    scrollTarget: 0.868,
+    startPhase: 0.868,
+    endPhase: 0.975,
     position: 'right',
   },
 ]

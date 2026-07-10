@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 
-const TOTAL_FRAMES = 1202
+const TOTAL_FRAMES = 1344
 const FRAME_PATH = (n: number) => `/frames/frame_${String(n).padStart(4, '0')}.webp`
 
 // Preload all frames into Image objects once on mount
