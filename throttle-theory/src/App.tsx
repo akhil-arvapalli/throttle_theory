@@ -1,32 +1,32 @@
-import VideoScrubber from './components/VideoScrubber'
 import ScrollTracker from './components/ScrollTracker'
+import VideoScrubber from './components/VideoScrubber'
+import Loader from './components/Loader'
 import HeroText from './components/overlays/HeroText'
+import AboutStatement from './components/overlays/AboutStatement'
 import ServiceCards from './components/overlays/ServiceCards'
+import FinalCTA from './components/FinalCTA'
 import Navbar from './components/overlays/Navbar'
+import ProgressRail from './components/ProgressRail'
 import Footer from './components/ui/Footer'
 import SoundToggle from './components/ui/SoundToggle'
-import ScrollButtons from './components/ScrollButtons'
-import { useScrollStore } from './hooks/useScrollProgress'
 
 export default function App() {
-  const progress = useScrollStore((s) => s.progress)
-
   return (
-    <div style={{ overflowX: 'hidden' }}>
-      <div id="scroll-container">
-        {/* Smooth scroll tracker (pure rAF lerp, no DOM scroll dependency) */}
-        <ScrollTracker />
+    <>
+      {/* Scroll spacer — native scrolling drives the whole experience */}
+      <div id="scroll-container" aria-hidden="true" />
 
-        {/* Video frame scrubber — covers the entire scroll range */}
-        <VideoScrubber progress={progress} visible={true} />
-
-        <HeroText />
-        <ServiceCards />
-        <Navbar />
-        <SoundToggle />
-        <ScrollButtons />
-      </div>
+      <ScrollTracker />
+      <VideoScrubber />
+      <Loader />
+      <HeroText />
+      <AboutStatement />
+      <ServiceCards />
+      <FinalCTA />
+      <Navbar />
+      <ProgressRail />
+      <SoundToggle />
       <Footer />
-    </div>
+    </>
   )
 }

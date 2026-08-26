@@ -1,6 +1,10 @@
+import { SITE } from '../../config/site'
+
+/** Full services list — includes everything, even what the video doesn't show. */
 const SERVICES_LIST = [
   'Engine & Performance',
   'Maintenance & Service',
+  'Restoration & Classics',
   'Paint & Detailing',
   'Vinyl Wrapping',
   'Wash & Valet',
@@ -8,202 +12,76 @@ const SERVICES_LIST = [
 
 export default function Footer() {
   return (
-    <>
-      <footer
-        id="contact"
-        className="footer"
-      >
-        <div className="footer-grid">
-          {/* Left: logo + tagline */}
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-              <svg width="20" height="12" viewBox="0 0 20 12" fill="none">
-                <path
-                  d="M1 8h4l2-6 3 8 2-4 2 3 2-3h3"
-                  stroke="#f59e0b"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-              <span
-                style={{
-                  fontFamily: "'Rajdhani', sans-serif",
-                  fontWeight: 700,
-                  fontSize: 14,
-                  letterSpacing: '0.12em',
-                  color: 'rgba(255,255,255,0.8)',
-                }}
-              >
-                THROTTLE THEORY
-              </span>
-            </div>
-            <p
-              style={{
-                fontFamily: "'Inter', sans-serif",
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.45)',
-                fontStyle: 'italic',
-                lineHeight: 1.5,
-              }}
-            >
-              We work on machines. Not timelines.
-            </p>
+    <footer id="contact" className="footer">
+      <div className="footer-grid">
+        {/* Left: logo + tagline + CTA */}
+        <div>
+          <div className="footer-brand">
+            <svg width="20" height="12" viewBox="0 0 20 12" fill="none" aria-hidden="true">
+              <path
+                d="M1 8h4l2-6 3 8 2-4 2 3 2-3h3"
+                stroke="#f59e0b"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+            <span>{SITE.name.toUpperCase()}</span>
           </div>
-
-          {/* Right: services + contact */}
-          <div className="footer-right-grid">
-            <div>
-              <p
-                style={{
-                  fontFamily: "'Rajdhani', sans-serif",
-                  fontSize: 14,
-                  color: 'rgba(255,255,255,0.8)',
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  marginBottom: 10,
-                }}
-              >
-                Services
-              </p>
-              {SERVICES_LIST.map((s) => (
-                <p
-                  key={s}
-                  style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: 13,
-                    color: 'rgba(255,255,255,0.45)',
-                    lineHeight: 1.8,
-                  }}
-                >
-                  {s}
-                </p>
-              ))}
-            </div>
-
-            <div>
-              <p
-                style={{
-                  fontFamily: "'Rajdhani', sans-serif",
-                  fontSize: 14,
-                  color: 'rgba(255,255,255,0.8)',
-                  letterSpacing: '0.12em',
-                  textTransform: 'uppercase',
-                  marginBottom: 10,
-                }}
-              >
-                Contact
-              </p>
-              {[
-                'Hyderabad, Telangana',
-                '+91 98765 43210',
-                'Mon–Sat  9am–7pm',
-              ].map((line) => (
-                <p
-                  key={line}
-                  style={{
-                    fontFamily: "'Inter', sans-serif",
-                    fontSize: 13,
-                    color: 'rgba(255,255,255,0.45)',
-                    lineHeight: 1.8,
-                  }}
-                >
-                  {line}
-                </p>
-              ))}
-            </div>
-          </div>
+          <p className="footer-tagline">{SITE.tagline}</p>
+          <a
+            className="btn btn-solid footer-cta"
+            href={SITE.whatsappHref}
+            target={SITE.whatsappHref.startsWith('#') ? undefined : '_blank'}
+            rel={SITE.whatsappHref.startsWith('#') ? undefined : 'noopener noreferrer'}
+          >
+            Book a Service
+          </a>
         </div>
 
-        {/* Bottom bar */}
-        <div className="footer-bottom">
-          <p
-            style={{
-              fontFamily: "'Inter', sans-serif",
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.45)',
-            }}
-          >
-            © 2026 Throttle Theory
-          </p>
-          <div style={{ display: 'flex', gap: 20 }}>
-            {['Instagram', 'Google Maps'].map((link) => (
-              <a
-                key={link}
-                href="#"
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: 13,
-                  color: 'rgba(255,255,255,0.45)',
-                  textDecoration: 'none',
-                }}
-              >
-                {link}
-              </a>
+        {/* Right: services + contact */}
+        <div className="footer-right-grid">
+          <div>
+            <p className="footer-heading">Services</p>
+            {SERVICES_LIST.map((s) => (
+              <p key={s} className="footer-line">
+                {s}
+              </p>
             ))}
           </div>
+
+          <div>
+            <p className="footer-heading">Contact</p>
+            <p className="footer-line">{SITE.address}</p>
+            <p className="footer-line">
+              <a href={SITE.phoneHref} className="footer-link">
+                {SITE.phoneDisplay}
+              </a>
+            </p>
+            <p className="footer-line">
+              <a href={SITE.emailHref} className="footer-link">
+                {SITE.email}
+              </a>
+            </p>
+            <p className="footer-line">{SITE.hours}</p>
+          </div>
         </div>
-      </footer>
+      </div>
 
-      <style>{`
-        .footer {
-          background: #080808;
-          border-top: 1px solid rgba(255,255,255,0.06);
-          padding: 48px 5%;
-        }
-
-        .footer-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 40px;
-          max-width: 960px;
-          margin: 0 auto;
-        }
-
-        .footer-right-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 24px;
-        }
-
-        .footer-bottom {
-          max-width: 960px;
-          margin: 32px auto 0;
-          padding-top: 20px;
-          border-top: 1px solid rgba(255,255,255,0.04);
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        @media (max-width: 768px) {
-          .footer {
-            padding: 32px 20px;
-          }
-          .footer-grid {
-            grid-template-columns: 1fr;
-            gap: 32px;
-          }
-          .footer-right-grid {
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-          }
-          .footer-bottom {
-            flex-direction: column;
-            text-align: center;
-            gap: 12px;
-          }
-        }
-
-        @media (max-width: 420px) {
-          .footer-right-grid {
-            grid-template-columns: 1fr;
-            gap: 24px;
-          }
-        }
-      `}</style>
-    </>
+      {/* Bottom bar */}
+      <div className="footer-bottom">
+        <p className="footer-line">
+          © {SITE.established} {SITE.name}
+        </p>
+        <div className="footer-socials">
+          <a href={SITE.instagram} target="_blank" rel="noopener noreferrer" className="footer-link">
+            Instagram
+          </a>
+          <a href={SITE.mapsUrl} target="_blank" rel="noopener noreferrer" className="footer-link">
+            Google Maps
+          </a>
+        </div>
+      </div>
+    </footer>
   )
 }
