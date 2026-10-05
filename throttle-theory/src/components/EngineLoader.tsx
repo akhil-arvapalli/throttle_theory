@@ -264,7 +264,17 @@ export default function EngineLoader() {
   useEffect(() => {
     if (gone) return
     let raf = 0
-    let prev = 0
+    /* Seeded from the clock, NOT from 0. This effect re-runs on every phase
+       change and on the framesReady flip, and `prev` is re-initialised with
+       it — so a `0` seed made the first frame after each re-run compute
+       dt = min(0.05, now/1000) = 0.05, i.e. a phantom 50ms step injected
+       into A.t, A.phaseT and A.theta. On a cold cache the re-runs bunch up
+       (framesReady lands late, phases still advance on their timers), so the
+       crank accumulated phantom time faster than real time and the piston
+       lurched — the "messed up animation on a new device". Seeding from the
+       same timebase as the rAF timestamp makes the first frame an ordinary
+       ~16ms one, so a re-run costs nothing. */
+    let prev = performance.now()
     const A = animRef.current
     const isReduced = prefersReducedMotion()
 

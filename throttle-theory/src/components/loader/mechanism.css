@@ -34,8 +34,14 @@
   --load: 0;
   --belt-speed: 1;
 
-  /* Already viewBox-scaled: it needs no resize handling, only a height. */
-  height: min(54vh, 440px);
+  /* Fills whatever height .camera was given, and never asks for more than the
+     old fixed ceiling — so a tall viewport looks exactly as it did, while a
+     short one (13" MacBook in a browser) shrinks the drawing instead of
+     pushing the wordmark off the top of the screen.
+     `preserveAspectRatio` is left at its `xMidYMid meet` default, so the
+     slider-crank scales down whole rather than squashing. */
+  height: 100%;
+  max-height: min(54vh, 440px);
   width: auto;
   max-width: 82vw;
   overflow: visible;

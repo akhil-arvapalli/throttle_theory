@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useScrollStore } from './useScrollProgress'
 import { VIDEO_DURATION, PLAYBACK_RATE } from '../config/video'
 
@@ -18,16 +18,48 @@ const STORAGE_OK = (() => {
   }
 })()
 
+/* ═══ the one shared graph ═══════════════════════════════════════════════
+   `useSound` is called from more than one component (EngineLoader and
+   SoundToggle), so the AudioContext, its master gain, the decoded buffer and
+   the scroll-driven transport are module state with a MODULE lifecycle — not
+   per-instance state cleaned up by a hook effect.
 
-/* ═══ shared graph ═══════════════════════════════════════════════════════
-   One AudioContext for the whole app. `useSound` is called from more than one
-   component (the loader and the sound toggle); giving each its own context
-   produced two competing ones, a duplicate fetch of the same recording, and a
-   mute button that only governed half the site. */
+   The previous shape had per-instance effects writing to shared refs, which
+   broke in two ways that only showed up on a first visit:
+
+     1. Each caller ran its own `[enabled]` effect, so two AudioContexts were
+        created (the second overwriting `ctxRef.current`) and the 1.2MB clip
+        was fetched twice — `bufferLoading` was a per-instance ref, so the
+        second caller never saw the first one's in-flight guard.
+     2. When the loader unmounted, ITS cleanup closed `ctxRef.current` — which
+        by then was the context SoundToggle was using — and nulled
+        `bufferRef`. SoundToggle's effect deps had not changed, so it never
+        rebuilt the graph. Audio was dead for the rest of the session.
+
+   Worse, on a cold cache the decode is still in flight when the loader lifts
+   (~7s). The old `cancelled` flag discarded the result and the buffer was
+   never refetched, so the engine note was silent until the next full reload
+   — which is why "first time loading isn't loading the audio".
+
+   Now the graph is created on demand, torn down only when sound is actually
+   switched off, and the decoded AudioBuffer outlives the context that decoded
+   it (AudioBuffers are not bound to an AudioContext), so a rebuild is free. */
 const ctxRef = { current: null as AudioContext | null }
 const bufferRef = { current: null as AudioBuffer | null }
 const sourceRef = { current: null as AudioBufferSourceNode | null }
 const gainRef = { current: null as GainNode | null }
+
+/** Survives context teardown — an AudioBuffer is portable between contexts. */
+let decodePromise: Promise<AudioBuffer> | null = null
+
+const playingRef = { current: false }
+const playingFromRef = { current: 0 }
+const startedAtCtxRef = { current: 0 }
+const rateRef = { current: 1 }
+let pauseTimer: ReturnType<typeof setTimeout> | null = null
+let lastProgress = 0
+let scrollUnsub: (() => void) | null = null
+
 const subscribers = new Set<() => void>()
 let enabledState = (() => {
   if (!STORAGE_OK) return false
@@ -38,6 +70,177 @@ let enabledState = (() => {
   }
 })()
 const emit = () => subscribers.forEach((fn) => fn())
+
+function stopSource() {
+  try {
+    sourceRef.current?.stop()
+  } catch {
+    /* already stopped */
+  }
+  sourceRef.current = null
+  playingRef.current = false
+  if (pauseTimer) {
+    clearTimeout(pauseTimer)
+    pauseTimer = null
+  }
+}
+
+/** Where the audio actually is right now, in video-seconds. */
+function audioPosition() {
+  const ctx = ctxRef.current
+  if (!ctx || !playingRef.current) return 0
+  return playingFromRef.current + (ctx.currentTime - startedAtCtxRef.current)
+}
+
+/**
+ * Start the buffer at `offsetSeconds`, optionally at a playback rate.
+ * AudioBufferSourceNode does not preserve pitch when the rate changes, so a
+ * run at PLAYBACK_RATE > 1 sounds higher — which reads as revving on an
+ * engine track, but it is a real artefact and not something to hide.
+ */
+function playFromOffset(offsetSeconds: number, rate = 1) {
+  const ctx = ctxRef.current
+  const buffer = bufferRef.current
+  const gain = gainRef.current
+  if (!ctx || !buffer || !gain) return
+
+  if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
+
+  stopSource()
+
+  const source = ctx.createBufferSource()
+  source.buffer = buffer
+  source.connect(gain)
+  source.playbackRate.value = rate
+  const clamped = Math.max(0, Math.min(offsetSeconds, buffer.duration - 0.01))
+  source.start(0, clamped)
+  playingFromRef.current = clamped
+  startedAtCtxRef.current = ctx.currentTime
+  rateRef.current = rate
+  sourceRef.current = source
+  playingRef.current = true
+}
+
+/**
+ * Create the context and master gain if they are not already there, and make
+ * sure the clip is decoding. Idempotent, and safe to call from anywhere —
+ * every caller goes through here rather than constructing its own graph.
+ */
+function ensureGraph() {
+  if (ctxRef.current && ctxRef.current.state !== 'closed') {
+    void ensureBuffer(ctxRef.current)
+    return ctxRef.current
+  }
+
+  let ctx: AudioContext
+  try {
+    ctx = new AudioContext()
+  } catch (err) {
+    console.warn('WebAudio unavailable:', err)
+    return null
+  }
+  ctxRef.current = ctx
+
+  const gain = ctx.createGain()
+  gain.gain.value = VOLUME
+  gain.connect(ctx.destination)
+  gainRef.current = gain
+
+  void ensureBuffer(ctx)
+  return ctx
+}
+
+function ensureBuffer(ctx: AudioContext) {
+  if (bufferRef.current) return
+  if (!decodePromise) {
+    decodePromise = (async () => {
+      const response = await fetch(AUDIO_SRC)
+      if (!response.ok) throw new Error(`HTTP ${response.status}`)
+      const bytes = await response.arrayBuffer()
+      return await ctx.decodeAudioData(bytes)
+    })()
+      .then((decoded) => {
+        // Deliberately NOT tied to any component's lifetime: a decode that
+        // lands after the loader has lifted is still wanted. This is the
+        // first-visit fix — the old code threw the result away.
+        bufferRef.current = decoded
+        return decoded
+      })
+      .catch((err) => {
+        // Allow a later attempt to retry rather than caching the failure.
+        decodePromise = null
+        console.warn('Failed to load audio:', err)
+        throw err
+      })
+  }
+  void decodePromise.catch(() => {})
+}
+
+/** Close the context. Only ever called when sound is switched OFF. */
+function teardownGraph() {
+  stopSource()
+  detachScrollAudio()
+  const ctx = ctxRef.current
+  ctxRef.current = null
+  gainRef.current = null
+  // bufferRef and decodePromise deliberately survive: the AudioBuffer is not
+  // bound to the context, so switching sound back on costs no refetch.
+  if (ctx && ctx.state !== 'closed') void ctx.close().catch(() => {})
+}
+
+/**
+ * The scroll → audio transport, as ONE subscription for the whole app. It was
+ * previously per-`useSound()`-caller, so every scroll tick restarted the
+ * source once per caller.
+ */
+function attachScrollAudio() {
+  if (scrollUnsub) return
+
+  const unsub = useScrollStore.subscribe((state) => {
+    if (!bufferRef.current) return
+
+    const targetTime = state.progress * VIDEO_DURATION
+    const delta = state.progress - lastProgress
+    lastProgress = state.progress
+
+    if (Math.abs(delta) < 0.00005) return
+
+    if (delta > 0) {
+      // A guided run drives the scroll at a known rate, so the note is
+      // played back at that same rate and nudged back if it slips. Under
+      // hand-driven scrolling it is left alone — re-seeking on every frame
+      // of a hand-driven scroll would sound far worse than a little drift.
+      const rate = state.autoplaying ? PLAYBACK_RATE : 1
+
+      if (!playingRef.current || rate !== rateRef.current) {
+        playFromOffset(targetTime, rate)
+      } else if (state.autoplaying && Math.abs(audioPosition() - targetTime) > DRIFT_TOLERANCE) {
+        playFromOffset(targetTime, rate)
+      }
+
+      if (pauseTimer) clearTimeout(pauseTimer)
+      pauseTimer = setTimeout(stopSource, PAUSE_DELAY_MS)
+    } else {
+      // Scrolling backward — reverse playback sounds wrong, so stay quiet
+      stopSource()
+    }
+  })
+
+  const handleVisibility = () => {
+    if (document.hidden) stopSource()
+  }
+  document.addEventListener('visibilitychange', handleVisibility)
+
+  scrollUnsub = () => {
+    unsub()
+    document.removeEventListener('visibilitychange', handleVisibility)
+    scrollUnsub = null
+  }
+}
+
+function detachScrollAudio() {
+  scrollUnsub?.()
+}
 
 /**
  * Engine audio synced to scroll — plays forward while scrolling down,
@@ -68,160 +271,25 @@ export function useSound() {
     }
   }, [])
 
-  // Intentionally the shared module refs, not per-instance ones: App renders
-  // both EngineLoader and SoundToggle, and two independent useSound() calls
-  // meant two AudioContexts, two fetches of the same 1.2MB clip, and a mute
-  // control governing only one of them.
-
-  const playingRef = useRef(false)
-  const playingFromRef = useRef(0)
-  const startedAtCtxRef = useRef(0)
-  const rateRef = useRef(1)
-  const pauseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const lastProgress = useRef(0)
-  const bufferLoading = useRef(false)
-
-  const stopSource = useCallback(() => {
-    try {
-      sourceRef.current?.stop()
-    } catch {
-      /* already stopped */
+  /* Graph lifecycle — module-level, driven ONLY by the preference.
+     There is deliberately no cleanup that tears the graph down: a component
+     unmounting (the loader lifting, which happens on every single visit) must
+     not destroy audio that another component is still using. */
+  useEffect(() => {
+    if (!enabled) {
+      teardownGraph()
+      return
     }
-    sourceRef.current = null
-    playingRef.current = false
-  }, [])
+    ensureGraph()
+    attachScrollAudio()
+  }, [enabled])
 
-  /**
-   * Start the buffer at `offsetSeconds`, optionally at a playback rate.
-   * AudioBufferSourceNode does not preserve pitch when the rate changes, so a
-   * run at PLAYBACK_RATE > 1 sounds higher — which reads as revving on an
-   * engine track, but it is a real artefact and not something to hide.
-   */
-  const playFromOffset = useCallback((offsetSeconds: number, rate = 1) => {
-    const ctx = ctxRef.current
-    const buffer = bufferRef.current
-    const gain = gainRef.current
-    if (!ctx || !buffer || !gain) return
-
-    if (ctx.state === 'suspended') void ctx.resume()
-
-    stopSource()
-
-    const source = ctx.createBufferSource()
-    source.buffer = buffer
-    source.connect(gain)
-    source.playbackRate.value = rate
-    const clamped = Math.max(0, Math.min(offsetSeconds, buffer.duration - 0.01))
-    source.start(0, clamped)
-    playingFromRef.current = clamped
-    startedAtCtxRef.current = ctx.currentTime
-    rateRef.current = rate
-    sourceRef.current = source
-    playingRef.current = true
-  }, [stopSource])
-
-  /** Where the audio actually is right now, in video-seconds. */
-  const audioPosition = useCallback(() => {
-    const ctx = ctxRef.current
-    if (!ctx || !playingRef.current) return 0
-    return playingFromRef.current + (ctx.currentTime - startedAtCtxRef.current)
-  }, [])
-
-  // Create/tear down the audio context with the preference
+  // A restored preference still needs a user gesture before audio can start.
   useEffect(() => {
     if (!enabled) return
-
-    let cancelled = false
-
-    async function loadAudio() {
-      try {
-        const ctx = new AudioContext()
-        ctxRef.current = ctx
-
-        const gain = ctx.createGain()
-        gain.gain.value = VOLUME
-        gain.connect(ctx.destination)
-        gainRef.current = gain
-
-        if (!bufferLoading.current) {
-          bufferLoading.current = true
-          const response = await fetch(AUDIO_SRC)
-          const arrayBuffer = await response.arrayBuffer()
-          const audioBuffer = await ctx.decodeAudioData(arrayBuffer)
-          bufferLoading.current = false
-          if (!cancelled) {
-            bufferRef.current = audioBuffer
-            lastProgress.current = useScrollStore.getState().progress
-          }
-        }
-      } catch (err) {
-        console.warn('Failed to load audio:', err)
-      }
-    }
-
-    void loadAudio()
-
-    return () => {
-      cancelled = true
-      stopSource()
-      void ctxRef.current?.close()
-      ctxRef.current = null
-      bufferRef.current = null
-      gainRef.current = null
-    }
-  }, [enabled, stopSource])
-
-  // Sync playback to scroll
-  useEffect(() => {
-    if (!enabled) return
-
-    const unsub = useScrollStore.subscribe((state) => {
-      if (!bufferRef.current) return
-
-      const targetTime = state.progress * VIDEO_DURATION
-      const delta = state.progress - lastProgress.current
-      lastProgress.current = state.progress
-
-      if (Math.abs(delta) < 0.00005) return
-
-      if (delta > 0) {
-        // A guided run drives the scroll at a known rate, so the note is
-        // played back at that same rate and nudged back if it slips. Under
-        // hand-driven scrolling it is left alone — re-seeking on every frame
-        // of a hand-driven scroll would sound far worse than a little drift.
-        const rate = state.autoplaying ? PLAYBACK_RATE : 1
-
-        if (!playingRef.current || rate !== rateRef.current) {
-          playFromOffset(targetTime, rate)
-        } else if (state.autoplaying && Math.abs(audioPosition() - targetTime) > DRIFT_TOLERANCE) {
-          playFromOffset(targetTime, rate)
-        }
-
-        if (pauseTimer.current) clearTimeout(pauseTimer.current)
-        pauseTimer.current = setTimeout(stopSource, PAUSE_DELAY_MS)
-      } else {
-        // Scrolling backward — reverse playback sounds wrong, so stay quiet
-        stopSource()
-      }
-    })
-
-    const handleVisibility = () => {
-      if (document.hidden) stopSource()
-    }
-    document.addEventListener('visibilitychange', handleVisibility)
-
-    return () => {
-      unsub()
-      document.removeEventListener('visibilitychange', handleVisibility)
-      if (pauseTimer.current) clearTimeout(pauseTimer.current)
-    }
-  }, [enabled, playFromOffset, stopSource, audioPosition])
-
-  // Restored preference needs a user gesture before audio can start
-  useEffect(() => {
-    if (!enabled || !ctxRef.current) return
     const resume = () => {
-      if (ctxRef.current?.state === 'suspended') void ctxRef.current.resume()
+      const ctx = ctxRef.current
+      if (ctx?.state === 'suspended') void ctx.resume().catch(() => {})
     }
     window.addEventListener('pointerdown', resume, { once: true })
     window.addEventListener('keydown', resume, { once: true })
@@ -242,10 +310,9 @@ export function useSound() {
           /* private mode */
         }
       }
-      if (!next) stopSource()
       return next
     })
-  }, [stopSource, setEnabled])
+  }, [setEnabled])
 
   /** Stable identity: an inline arrow here would be a new function every
    * render, and the loader's `useEffect(() => unlock(), [unlock])` would

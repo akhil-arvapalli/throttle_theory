@@ -376,7 +376,10 @@ html {
   left: 0;
   right: 0;
   bottom: max(9vh, 64px);
-  z-index: 10;
+  /* Above .service-card-anchor (z-index 10). They used to TIE, and the tie was
+     broken only by DOM order — ServiceCards renders after HeroText, so on a
+     short viewport the cards won and any overlap silently stole the CTA. */
+  z-index: 12;
   display: flex;
   justify-content: center;
   pointer-events: none;
@@ -393,7 +396,7 @@ html {
 }
 .hero-kicker {
   font-family: 'Departure Mono', 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Menlo, monospace;
-  font-size: 11px;
+  font-size: clamp(10px, 0.95vw, 11px);
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: rgba(245, 245, 240, 0.75);
@@ -558,7 +561,7 @@ html {
 .service-title {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 21px;
+  font-size: clamp(17px, 2.1vw, 21px);
   color: #f5f5f0;
   letter-spacing: 0.02em;
 }
@@ -766,7 +769,7 @@ html {
 .navbar-logo span {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 16px;
+  font-size: clamp(14px, 1.5vw, 16px);
   letter-spacing: 0.2em;
   color: #f5f5f0;
 }
@@ -891,7 +894,7 @@ html {
   padding: 18px 4px;
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 30px;
+  font-size: clamp(22px, 3vw, 30px);
   letter-spacing: 0.12em;
   color: #f5f5f0;
   text-align: left;
@@ -1025,13 +1028,13 @@ html {
 .footer-brand span {
   font-family: 'Rajdhani', sans-serif;
   font-weight: 700;
-  font-size: 14px;
+  font-size: clamp(13px, 1.25vw, 14px);
   letter-spacing: 0.12em;
   color: rgba(255, 255, 255, 0.8);
 }
 .footer-tagline {
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: clamp(12px, 1.15vw, 13px);
   color: rgba(255, 255, 255, 0.58);
   font-style: italic;
   line-height: 1.5;
@@ -1045,7 +1048,7 @@ html {
 }
 .footer-heading {
   font-family: 'Rajdhani', sans-serif;
-  font-size: 14px;
+  font-size: clamp(13px, 1.25vw, 14px);
   color: rgba(255, 255, 255, 0.8);
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1053,7 +1056,7 @@ html {
 }
 .footer-line {
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 13px;
+  font-size: clamp(12px, 1.15vw, 13px);
   color: rgba(255, 255, 255, 0.58);
   line-height: 1.8;
 }
@@ -1086,7 +1089,8 @@ html {
   .show-mobile { display: flex !important; }
 
   .hero-overlay { bottom: calc(12vh + env(safe-area-inset-bottom, 0px)); }
-  .hero-kicker { font-size: 10px; letter-spacing: 0.24em; }
+  /* size now fluid from the base rule; only the tracking tightens here */
+  .hero-kicker { letter-spacing: 0.24em; }
   .btn {
     padding: 12px 18px;
     font-size: 12.5px;
@@ -1110,7 +1114,7 @@ html {
   .service-card-anchor[data-position='right'],
   .service-card-anchor[data-position='left'] { left: 14px; right: 14px; }
   .service-card { padding: 13px 15px; }
-  .service-title { font-size: 18px; }
+  /* fluid from the base rule — no override */
   .service-description { font-size: 12px; margin: 6px 0 8px; }
   .service-items li { font-size: 11.5px; padding: 1.5px 0; }
   .service-connector { display: none; }
@@ -1321,7 +1325,22 @@ html {
    The chrome inside (#stage, .hud, .cluster, .bootlog, .progress-block,
    .phase-tag, #gate) is a verbatim port in loader/loader-chrome.css. Only the
    shell that hosts it lives here. */
-#loader { position: fixed; inset: 0; z-index: 100; overflow: hidden; }
+#loader {
+  position: fixed; inset: 0; z-index: 100; overflow: hidden;
+  /* The chrome is taller than a short viewport: a 13" MacBook in a browser
+     gives ~780px of CSS height, and brand + engine + phase tag + hud + gate
+     came to ~862px. Centred, that overflowed BOTH ways and `overflow: hidden`
+     ate the top of the wordmark — which is what "the top of the loading
+     screen is cut off" was. The engine is the only part that may give up
+     room, so the shell centres and lets the camera flex; every other band
+     keeps its intrinsic height. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: clamp(8px, 2vh, 24px) 16px;
+}
 #loader.lifting { opacity: 0; pointer-events: none; }
 
 /* ── Ignition one-shots + foreground motes ──────────────────────────

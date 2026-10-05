@@ -428,6 +428,12 @@ export function useEngineClip({ ctxRef, masterRef, enabled = true }: EngineClipO
     (rpm: number, _dt: number, phase?: Phase): void => {
       const bus = ensureClip()
       if (!bus || bus.ctx.state === 'closed') return
+      // Self-heal: the mount effect can run before useSound has created the
+      // context, and its other deps are stable refs, so it would never re-run.
+      // The per-frame path is always called, so kicking the fetch off here
+      // means the clip loads whenever the graph finally appears. Guarded by
+      // loadStartedRef, so this is still once per graph lifetime.
+      loadClip(bus)
       if (phase !== undefined) phaseRef.current = phase
 
       const p = phaseRef.current
@@ -461,7 +467,7 @@ export function useEngineClip({ ctxRef, masterRef, enabled = true }: EngineClipO
 
       bus.gain.gain.setTargetAtTime(target, bus.ctx.currentTime, CLIP_LEVEL_TAU)
     },
-    [ensureClip],
+    [ensureClip, loadClip],
   )
 
   return {

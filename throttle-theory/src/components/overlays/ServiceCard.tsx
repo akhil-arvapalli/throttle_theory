@@ -69,10 +69,16 @@ export default function ServiceCard({ service, index, total, visible, progress, 
     <div
       className={`service-card-anchor${isTracked ? ' tracked' : ''}`}
       data-position={side}
-      style={anchorStyle}
+      // The guard has to be HERE, on the anchor, not on .service-card-motion.
+      // The anchor is `position: fixed` and 316px wide, so on a phone it sits
+      // over the hero; with only the inner element set to `pointer-events: none`
+      // a tap on the gap fell through the child and landed on the anchor
+      // itself, which swallowed it. "Explore the Garage" sat underneath, so
+      // tapping it did nothing at all — the guided run never started.
+      style={{ ...anchorStyle, pointerEvents: visible ? 'auto' : 'none' } as CSSProperties}
       aria-hidden={!visible}
     >
-      <div className="service-card-motion" style={{ pointerEvents: visible ? 'auto' : 'none' }}>
+      <div className="service-card-motion">
         <motion.div
           initial={false}
           animate={

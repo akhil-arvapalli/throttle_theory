@@ -98,6 +98,13 @@
   flex-direction: column;
   align-items: center;
   gap: 14px;
+  /* Grows into whatever the hud did not take, and is allowed to shrink below
+     its content — the camera below is the band that gives up height when the
+     viewport is short. Both halves matter: without `1 1` the stage would only
+     ever be its content height, and the engine's `height: 100%` would have
+     nothing to resolve against and collapse to zero. */
+  flex: 1 1 auto;
+  min-height: 0;
   transition: transform 0.4s ease, opacity 0.4s ease;
   perspective: 900px;
   perspective-origin: 50% 46%;
@@ -110,6 +117,15 @@
    its own Z so they parallax against each other as it moves. */
 .camera {
   position: relative;
+  /* Takes whatever height is left after the brand, the phase tag and the hud
+     have taken theirs. `min-height: 0` is what lets it shrink at all — a flex
+     item defaults to min-content, which is the engine's intrinsic height and
+     would re-introduce the overflow this is fixing. */
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transform-style: preserve-3d;
   transform:
     translate3d(var(--shiftX, 0px), var(--shiftY, 0px), 0)
@@ -234,6 +250,9 @@
 .hud {
   position: relative;
   width: min(1180px, 94vw);
+  /* Never shrinks — the instrument row is the thing being protected when the
+     viewport is short; the engine gives up its height first. */
+  flex: 0 0 auto;
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: end;
