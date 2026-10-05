@@ -1,4 +1,7 @@
+import { useRef } from 'react'
+import type { CSSProperties } from 'react'
 import { useScrollStore } from '../hooks/useScrollProgress'
+import { useFooterOverlap } from '../hooks/useFooterOverlap'
 import { SITE } from '../config/site'
 import StarBorder from './reactbits/StarBorder'
 import Magnet from './reactbits/Magnet'
@@ -9,26 +12,39 @@ import Magnet from './reactbits/Magnet'
  */
 export default function FinalCTA() {
   const progress = useScrollStore((s) => s.progress)
+  const ref = useRef<HTMLElement>(null)
+  const { overlap, lift } = useFooterOverlap(ref)
 
-  let opacity = 0
+  let appear = 0
   if (progress >= 0.9 && progress <= 0.94) {
-    opacity = (progress - 0.9) / 0.04
+    appear = (progress - 0.9) / 0.04
   } else if (progress > 0.94 && progress <= 0.975) {
-    opacity = 1
+    appear = 1
   } else if (progress > 0.975 && progress <= 0.995) {
-    // Hand off to the footer — fade out as it scrolls up over the canvas
-    opacity = 1 - (progress - 0.975) / 0.02
+    // Hand off to the footer as it scrolls up over the canvas
+    appear = 1 - (progress - 0.975) / 0.02
   }
+
+  // The bands above are tuned to the video, but the footer's height is not
+  // fixed — it grows with viewport, zoom and wrapped text, and on a phone it
+  // takes most of the screen. `lift` re-centres the CTA in the space the
+  // footer has left, and `overlap` fades it out as that space runs out, so
+  // the two can never collide at any size.
+  const opacity = Math.min(appear, 1 - overlap)
 
   const interactive = opacity > 0.5
 
   return (
     <section
+      ref={ref}
       className="final-cta"
-      style={{
-        opacity,
-        visibility: opacity === 0 ? 'hidden' : 'visible',
-      }}
+      style={
+        {
+          '--cta-lift': `${lift}px`,
+          opacity,
+          visibility: opacity === 0 ? 'hidden' : 'visible',
+        } as CSSProperties
+      }
       aria-hidden={!interactive}
     >
       <p className="overlay-kicker">Ready when your car is</p>

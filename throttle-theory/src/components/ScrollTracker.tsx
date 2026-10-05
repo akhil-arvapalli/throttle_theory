@@ -48,6 +48,12 @@ export default function ScrollTracker() {
       rafRef.current = requestAnimationFrame(tick)
     }
 
+    // Without this the browser restores the previous scroll offset on reload,
+    // so a refresh mid-page reopens the site at progress ~0.5: past the hero,
+    // scrubbed into the middle of the video, with no loader ever shown.
+    if ('scrollRestoration' in history) history.scrollRestoration = 'manual'
+    window.scrollTo(0, 0)
+
     readTarget()
     current = useScrollStore.getState().target
     useScrollStore.getState().setProgress(current)

@@ -1,14 +1,23 @@
+import { useRef } from 'react'
 import { useSound } from '../../hooks/useSound'
+import { useFooterOverlap } from '../../hooks/useFooterOverlap'
 
 export default function SoundToggle() {
   const { enabled, toggle } = useSound()
+  const ref = useRef<HTMLButtonElement>(null)
+  const { overlap } = useFooterOverlap(ref)
+  // Same collision the CTA used to have — the footer owns the corner once it
+  // scrolls up. Reversible: scrolling back up brings the control straight back.
+  const hidden = overlap > 0.98
 
   return (
     <button
+      ref={ref}
       onClick={toggle}
       aria-label={enabled ? 'Mute engine sound' : 'Unmute engine sound'}
       aria-pressed={enabled}
       className="sound-toggle"
+      data-hidden={hidden}
     >
       {enabled ? (
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">

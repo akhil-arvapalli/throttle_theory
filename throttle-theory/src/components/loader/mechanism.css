@@ -1,0 +1,130 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Slider-crank mechanism — every class the engine SVG depends on, ported out of
+   D:/projects/ui/styles.css. Keyframes are kept verbatim: their names are the
+   contract (`animation: …` here is the only thing referencing them).
+
+   What the SVG actually references, and what it needs from here:
+
+     #engine            sizing + the --heat drop-shadow + `.stall` rattle
+     .intake-chev       throat-streak march, rate tied to --rev
+     .exhaust-glow      manifold / downpipe / can / cat-back glow on --load
+     .turbo-heat        turbine housing heat on --load
+     .belt-teeth        belt-tooth march, rate tied to --belt-speed
+     .crown-heat        mix-blend-mode: screen
+     .pulley-ticks      — referenced by the markup, but the original stylesheet
+                         has NO rule for it. Class name kept verbatim; no rule
+                         invented, because inventing one would be inventing art.
+
+   Not ported, deliberately:
+     .needle-idle       belongs to the tach gauge, which this port does not
+                        include (the React project keeps its own Gauge).
+     .ovl               the kinematics overlay, a separate top-layer <svg> in
+                        the original and out of scope for the mechanism.
+     .gridlines, #loader.shudder, .blast, #ovlLayer
+                        loader-shell chrome, not the drawing.
+
+   Four custom properties are written per frame by the integrator's rAF, on
+   `handle.root`. Defaults are declared here so the drawing is correct before
+   the first tick rather than unstyled-then-correct.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#engine {
+  --heat: 0;
+  --rev: 0.15;
+  --load: 0;
+  --belt-speed: 1;
+
+  /* Already viewBox-scaled: it needs no resize handling, only a height. */
+  height: min(54vh, 440px);
+  width: auto;
+  max-width: 82vw;
+  overflow: visible;
+
+  /* glow that scales with revs — --heat set from the integrator */
+  filter: drop-shadow(0 0 calc(6px + var(--heat) * 26px) rgba(245, 158, 11, calc(var(--heat) * 0.42)));
+}
+
+/* The starter is chugging: a sub-pixel rattle on the whole drawing. Toggled by
+   the integrator with root.classList.toggle('stall', …). */
+#engine.stall { animation: stall-rattle 0.09s linear infinite; }
+@keyframes stall-rattle {
+  0% { transform: translate(0.6px, -0.4px) rotate(0.04deg); }
+  100% { transform: translate(-0.6px, 0.4px) rotate(-0.04deg); }
+}
+
+/* Piston crown heat reads as a glow over the piston, not a sticker on it. */
+.crown-heat { mix-blend-mode: screen; }
+
+/* ── intake ──────────────────────────────────────────────────────────────
+   --rev (0..1) is set every frame from rpm. The `max(0.08, …)` floor is what
+   stops a stalled engine from turning the airflow into a strobe. */
+.intake-chev {
+  animation: chev-march 0.8s linear infinite;
+  animation-duration: calc(0.8s / max(0.08, var(--rev, 0.15)));
+}
+@keyframes chev-march { to { stroke-dashoffset: -14; } }
+
+/* ── turbo + exhaust ─────────────────────────────────────────────────────
+   --load is boost^0.7, applied in JS because CSS has no pow(); keeping the
+   rule linear is what makes the visible glow come up early in the spool.
+   Heat follows exhaust LOAD, not engine speed — a turbo at idle is warm, not
+   cherry-red, and tying this to --rev would peg it while parked. */
+.exhaust-glow { opacity: calc(0.12 + var(--load, 0) * 0.72); }
+.turbo-heat   { opacity: calc(0.12 + var(--load, 0) * 0.74); }
+
+/* The overlay shares the engine viewBox and sits above it so the construction
+   lines remain visible over the moving mechanism. */
+.kinematics-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+  z-index: 2;
+}
+.kinematics-overlay .ovl {
+  fill: #a3e635;
+  font: 10px ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', monospace;
+  letter-spacing: 0.08em;
+}
+
+/* NO transform-origin on the turbo wheels, on purpose. The integrator drives
+   them with setAttribute('transform', …), which carries its own explicit pivot
+   (rotate(deg 302 84)). Adding a CSS transform-origin here applies a SECOND
+   offset on top and throws the wheel off its housing. The attribute alone is
+   correct. */
+
+/* belt teeth march at a rate tied to crank speed — --belt-speed set from JS */
+.belt-teeth {
+  animation: belt-march 0.9s linear infinite;
+  animation-duration: calc(0.9s / var(--belt-speed, 1));
+}
+@keyframes belt-march { to { stroke-dashoffset: -12; } }
+
+/* ── responsive ───────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  #engine { height: min(38vh, 300px); }
+}
+@media (max-width: 560px) {
+  #engine { height: min(34vh, 240px); }
+}
+
+/* ── reduced motion ──────────────────────────────────────────────────────
+   Airflow, belt and the stall rattle are engine-speed cues, not decoration.
+   They have to stop with everything else, or a reduced-motion user watches
+   three things marching while the crank sits frozen at TDC. */
+@media (prefers-reduced-motion: reduce) {
+  #engine.stall { animation: none; }
+  .intake-chev { animation: none; }
+  .belt-teeth { animation: none; }
+}
+
+/* The reduced-motion *preview* toggle is JS-driven and cannot reach the media
+   query, so mirror it onto a `.rm` ancestor (the original used <html class="rm">).
+   These selectors outrank the base rules, so they win regardless of source
+   order. Drop `.rm` onto the loader root if you want the same preview without
+   mutating <html>. */
+.rm #engine.stall,
+.rm .intake-chev,
+.rm .belt-teeth { animation: none; }

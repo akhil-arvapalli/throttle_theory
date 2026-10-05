@@ -107,7 +107,13 @@ export default function Navbar() {
     <>
       <nav
         className={`navbar${kicked ? ' navbar-kicked' : ''}`}
-        style={{ opacity: visible ? 1 : 0, pointerEvents: visible ? 'auto' : 'none' }}
+        style={{
+          opacity: visible ? 1 : 0,
+          // opacity:0 alone leaves the nav in the tab order — five invisible
+          // focus stops before anything a keyboard user can see.
+          visibility: visible ? 'visible' : 'hidden',
+          pointerEvents: visible ? 'auto' : 'none',
+        }}
         aria-label="Main"
       >
         {/* Logo — live RPM needle twitch */}

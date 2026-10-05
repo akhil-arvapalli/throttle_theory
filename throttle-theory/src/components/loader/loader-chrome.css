@@ -1,0 +1,388 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Piston loader — chrome around the mechanism. Every rule here is ported
+   verbatim from D:/projects/ui/styles.css, values included. Keyframes are kept
+   under their source names because `animation: …` is the only thing referencing
+   them; where a name had to change it is called out at the rule itself.
+
+   What this stylesheet owns, by class/id:
+
+     #srStatus      the live region (visually hidden)
+     .gridlines     drifting bay-floor grid
+     #stage         brand / camera / phase tag column, holds the perspective
+     .camera        the orbit/tilt/dolly plane
+     .haze          far depth plane
+     .dust          near depth plane, and the .mote children the integrator
+                    injects into it
+     .brand         wordmark and strapline
+     .phase-tag     the phase caption under the stage
+     .hud           three-column instrument row
+     .cluster       tach column
+     .tach          the tachometer drawing itself
+     .cluster-read  readouts under the tach
+     .bootlog       scripted boot log
+     .progress-block bar, percentage and status line
+     .sim-tag / .sim-cap   the two honesty markers
+     .vignette / .scanlines CRT overlays
+     #gate          the audio-unlock affordance
+
+   Not ported, deliberately:
+     #loader, #loader.lifting, #loader.shudder, #loader.blast
+                        the shell around this chrome. Not in this port; the
+                        integrator owns it, and those states are its business.
+     #loader.debug .bootlog
+                        only meaningful with the demo panel, which is not shipped.
+     .gauge-label   collides with the reactbits Gauge's own class of the same
+                    name. The source rule is a single `text-align: center`, and
+                    only `.cluster-read` — the class actually present in this
+                    port — is styled here.
+     .ovl           the kinematics overlay: a separate top-layer <svg>
+                    (mechanism.css already records it out of scope).
+
+   PALETTE TOKENS — same values as the source `:root`, deliberately not on
+   `:root`. `--font-brand` and `--font-body` are Tailwind v4 `@theme` namespace
+   variables in this project (index.css), so re-declaring them here would change
+   the brand font of every `font-brand` utility in the app. The same applies to
+   `--black`, `--amber`, `--cream`, `--rust`, `--red`, `--cyan`, `--line`,
+   `--surface`, `--amber-dim`, `--mono` and `--font-body`, none of which exist
+   under those names here. Declared instead on the three chrome roots whose
+   descendants consume them, so the values reach every rule below by inheritance
+   and leak nowhere.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+#stage,
+.hud,
+#gate {
+  --black: #080808;
+  --surface: #111113;
+  --line: #26262b;
+  --amber: #f59e0b;
+  --amber-dim: #92640a;
+  --rust: #c1502e;
+  --cream: #f5f5f0;
+  --red: #ef4444;
+  --cyan: #38bdf8;
+  --font-brand: 'Rajdhani', 'Segoe UI', sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
+  --mono: ui-monospace, 'Cascadia Mono', 'Segoe UI Mono', Menlo, monospace;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── bay floor ──────────────────────────────────────────────────────── */
+.gridlines {
+  position: absolute;
+  inset: -80px;
+  background-image:
+    linear-gradient(rgba(245, 245, 240, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 245, 240, 0.05) 1px, transparent 1px);
+  background-size: 44px 44px;
+  animation: grid-drift 60s linear infinite;
+  pointer-events: none;
+}
+@keyframes grid-drift { to { transform: translate(44px, 44px); } }
+
+/* ── stage ─────────────────────────────────────────────────────────── */
+#stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  perspective: 900px;
+  perspective-origin: 50% 46%;
+}
+#stage.retreat { transform: translateY(-16px) scale(0.94); opacity: 0; }
+
+/* ── camera rig ───────────────────────────────────────────────────────
+   A real 3D rig with no WebGL: #stage holds the perspective,
+   .camera carries the orbit/tilt/dolly, and each child sits at
+   its own Z so they parallax against each other as it moves. */
+.camera {
+  position: relative;
+  transform-style: preserve-3d;
+  transform:
+    translate3d(var(--shiftX, 0px), var(--shiftY, 0px), 0)
+    rotateX(var(--tilt, 0deg))
+    rotateY(var(--orbit, 0deg))
+    rotateZ(var(--roll, 0deg))
+    scale3d(var(--zoom, 1), var(--zoom, 1), var(--zoom, 1));
+  will-change: transform;
+}
+.camera > * { transform-style: preserve-3d; }
+
+/* far plane — sits behind the engine, drifts against the orbit */
+.haze {
+  position: absolute;
+  inset: -18% -10%;
+  z-index: -1;
+  transform: translateZ(-320px);
+  background:
+    radial-gradient(46% 34% at 50% 62%, rgba(245, 158, 11, 0.10), transparent 70%),
+    radial-gradient(70% 46% at 22% 78%, rgba(193, 80, 46, 0.09), transparent 72%),
+    radial-gradient(58% 40% at 82% 26%, rgba(56, 189, 248, 0.05), transparent 70%);
+  filter: blur(26px);
+  pointer-events: none;
+}
+
+/* near plane — motes drifting through the lamp cones */
+.dust {
+  position: absolute;
+  inset: -12%;
+  transform: translateZ(280px);
+  pointer-events: none;
+  overflow: hidden;
+  mix-blend-mode: screen;
+}
+.mote {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  border-radius: 50%;
+  background: rgba(245, 200, 120, 0.85);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.75);
+  animation: mote-drift linear infinite;
+}
+@keyframes mote-drift {
+  0%   { transform: translate3d(0, 0, 0) scale(0.6); opacity: 0; }
+  18%  { opacity: 0.9; }
+  82%  { opacity: 0.7; }
+  100% { transform: translate3d(var(--dx, 40px), var(--dy, -180px), 0) scale(1.15); opacity: 0; }
+}
+
+/* CRT scanlines + vignette, sold as "instrument screen" not "template" */
+.scanlines {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.22) 0 1px,
+    transparent 1px 3px
+  );
+  opacity: 0.26;
+  mix-blend-mode: multiply;
+}
+.vignette {
+  position: absolute;
+  inset: 0;
+  z-index: 11;
+  pointer-events: none;
+  background: radial-gradient(78% 66% at 50% 48%, transparent 52%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+.brand { text-align: center; }
+.brand-mark {
+  display: block;
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+}
+.brand-sub {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(245, 245, 240, 0.7);
+}
+
+.phase-tag {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--amber);
+  min-height: 14px;
+}
+
+/* fill-box, not view-box: this element's own bounding box starts at the hub
+   (38,104), so the pivot is its own centre-right, NOT an absolute viewBox point.
+   The idle jitter is +/-1deg about the needle's own root.
+
+   Keyframe renamed to `tach-needle-idle`. index.css already defines a global
+   `needle-idle` for the reactbits Gauge at +/-1.2deg, and keyframe names are
+   global — keeping the source name here would land a second definition in the
+   cascade and change that gauge's jitter by a fifth of a degree. The class name
+   and both keyframe stops are unchanged. */
+.needle-idle {
+  transform-box: fill-box;
+  transform-origin: 82% 50%;
+  animation: tach-needle-idle 0.9s ease-in-out infinite alternate;
+}
+@keyframes tach-needle-idle {
+  from { transform: rotate(-1deg); }
+  to { transform: rotate(1deg); }
+}
+
+/* ── HUD ───────────────────────────────────────────────────────────── */
+.hud {
+  position: relative;
+  width: min(1180px, 94vw);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: end;
+  gap: 20px;
+}
+
+.cluster { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tach { width: 210px; height: auto; }
+.tach { filter: drop-shadow(0 0 10px rgba(245, 158, 11, 0.12)); }
+.cluster-read { text-align: center; }
+
+.odo {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: 0.06em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.odo-unit {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: rgba(245, 245, 240, 0.7);
+  margin-left: 5px;
+}
+.odo-sub {
+  display: block;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: rgba(245, 245, 240, 0.7);
+}
+
+.bootlog {
+  align-self: center;
+  justify-self: end;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  letter-spacing: 0.06em;
+  color: rgba(245, 245, 240, 0.78);
+  white-space: pre;
+}
+.bootlog .on { color: var(--cream); }
+.bootlog .ok { color: var(--amber); }
+
+.progress-block { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; }
+.bar {
+  height: 3px;
+  background: rgba(245, 245, 240, 0.1);
+  overflow: hidden;
+}
+.bar-fill {
+  height: 100%;
+  width: 0;
+  background: linear-gradient(90deg, var(--rust), var(--amber));
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+  transition: width 0.12s linear;
+}
+.progress-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: 11px;
+}
+.status {
+  flex: 1;
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245, 245, 240, 0.78);
+}
+.frames {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: rgba(245, 245, 240, 0.7);
+}
+
+/* The honesty marker. Must survive EVERY breakpoint — .frames is detail and
+   gets hidden on narrow screens, this must not. */
+.sim-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--amber);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 2px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+/* Captions on the two readouts that otherwise look like live telemetry. */
+.sim-cap {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245, 245, 240, 0.72);
+}
+.bootlog .sim-cap { margin-top: 0; margin-bottom: 6px; }
+
+.bootlog { transition: opacity 0.2s ease; }
+
+#gate {
+  position: absolute;
+  z-index: 20;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: rgba(245, 245, 240, 0.75);
+  cursor: pointer;
+  pointer-events: auto;
+  transition: opacity 0.3s ease;
+}
+#gate.hidden { opacity: 0; }
+
+/* ── responsive ────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .bootlog { display: none; }
+  .hud { grid-template-columns: auto 1fr; }
+  .tach { width: 168px; }
+}
+@media (max-width: 560px) {
+  #stage { gap: 8px; }
+  .brand-mark { font-size: 16px; letter-spacing: 0.24em; }
+  .tach { width: 132px; }
+  .odo { font-size: 20px; }
+  .frames { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gridlines { animation: none; }
+  .needle-idle { animation: none; }
+}
+
+/* The reduced-motion preview toggle is JS-driven and cannot reach the media
+   query above, so mirror it onto a `.rm` ancestor (the original used
+   <html class="rm">). These selectors outrank the base rules, so they win
+   regardless of source order. */
+.rm .gridlines,
+.rm .needle-idle { animation: none; }
+.rm #stage.retreat { transition: opacity 0.2s linear; transform: none; }

@@ -1,6 +1,6 @@
 import ScrollTracker from './components/ScrollTracker'
 import VideoScrubber from './components/VideoScrubber'
-import Loader from './components/Loader'
+import Loader from './components/EngineLoader'
 import HeroText from './components/overlays/HeroText'
 import AboutStatement from './components/overlays/AboutStatement'
 import ServiceCards from './components/overlays/ServiceCards'
@@ -9,6 +9,7 @@ import Navbar from './components/overlays/Navbar'
 import ProgressRail from './components/ProgressRail'
 import Footer from './components/ui/Footer'
 import SoundToggle from './components/ui/SoundToggle'
+import AutoplayScroll from './components/AutoplayScroll'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
       <div id="scroll-container" aria-hidden="true" />
 
       <ScrollTracker />
+      <AutoplayScroll />
       <VideoScrubber />
       <Loader />
       <HeroText />

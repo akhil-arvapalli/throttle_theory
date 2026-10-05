@@ -1,9 +1,8 @@
 import { useEffect, useRef } from 'react'
 import { useScrollStore } from '../hooks/useScrollProgress'
+import { START_FRAMES } from '../config/video'
 
 export const TOTAL_FRAMES = 1202
-/** Frames loaded up-front before the loader lifts; the rest stream in behind it. */
-const START_FRAMES = 24
 const CONCURRENCY = 10
 /** Cap the backing store — 2× DPR is plenty and keeps the GPU work sane. */
 const MAX_DPR = 2
@@ -32,22 +31,45 @@ for (let n = 1; n <= TOTAL_FRAMES; n += STEP) FRAME_NUMS.push(n)
 const SLOT_COUNT = FRAME_NUMS.length
 
 /**
+ * Slots that must land before the reveal. Indexed by SOURCE frame, not slot
+ * position: with STEP=2 (mobile / data-saver) slot 23 is source frame 47, so
+ * treating the slot index as a frame number over-reports by STEP× and, worse,
+ * fires readiness off a frame past the one the reveal needs.
+ */
+const REQUIRED_SLOTS = Math.min(SLOT_COUNT, Math.ceil(START_FRAMES / STEP))
+
+/**
  * Progressive frame preloader.
  * Phase 1: first START_FRAMES slots (fast — reveals the site quickly).
  * Phase 2: the rest, in order, CONCURRENCY at a time.
+ *
+ * A failed load is NOT a successful load. `onload` and `onerror` are separate
+ * handlers: sharing them counted 404s toward the loaded total AND stored a
+ * pixel-less Image as if it were a decoded frame, which let a wholly broken
+ * frame directory report "ready".
  */
 function useFrames() {
   const frames = useRef<(HTMLImageElement | undefined)[]>([])
 
   useEffect(() => {
     let cancelled = false
-    let completed = 0
+    let loaded = 0
+    let failed = 0
+    let requiredOk = 0
+    let requiredBad = 0
     let nextIdx = 0
     let loading = 0
 
     const images: (HTMLImageElement | undefined)[] = new Array(SLOT_COUNT)
     frames.current = images
-    useScrollStore.getState().setFrames(0, SLOT_COUNT)
+    const { setFrames, setStartReady, setStartFailed } = useScrollStore.getState()
+    setFrames(0, SLOT_COUNT)
+
+    /** All required slots settled — report which way they went. */
+    const settleRequired = () => {
+      if (requiredOk === REQUIRED_SLOTS) setStartReady(true)
+      else if (requiredOk + requiredBad === REQUIRED_SLOTS) setStartFailed(true)
+    }
 
     const pump = () => {
       if (cancelled) return
@@ -56,14 +78,32 @@ function useFrames() {
         loading++
         const img = new Image()
         img.src = FRAME_PATH(FRAME_NUMS[idx])
-        img.onload = img.onerror = () => {
+
+        img.onload = () => {
           loading--
           if (cancelled) return
-          completed++
+          loaded++
           images[idx] = img
-          useScrollStore.getState().setFrames(completed, SLOT_COUNT)
-          if (idx === START_FRAMES - 1) useScrollStore.getState().setStartReady(true)
-          if (completed === SLOT_COUNT) return
+          setFrames(loaded, SLOT_COUNT)
+          if (idx < REQUIRED_SLOTS) {
+            requiredOk++
+            settleRequired()
+          }
+          if (loaded + failed === SLOT_COUNT) return
+          pump()
+        }
+
+        img.onerror = () => {
+          loading--
+          if (cancelled) return
+          failed++
+          // Deliberately NOT stored into `images` — a broken image would be
+          // drawn as an empty bitmap for the rest of the session.
+          if (idx < REQUIRED_SLOTS) {
+            requiredBad++
+            settleRequired()
+          }
+          if (loaded + failed === SLOT_COUNT) return
           pump()
         }
       }
